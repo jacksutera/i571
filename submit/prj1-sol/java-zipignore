@@ -1,0 +1,8 @@
+*.gradle/*
+*/build/*
+.gitattributes
+.gitignore
+.zipignore
+*.bak
+*.jar
+*~
