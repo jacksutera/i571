@@ -1,5 +1,3 @@
-571 proj1 ebnf of bits-571
-
 program
   : expr*
   ;

@@ -51,7 +51,98 @@ def parse(text):
     toksIndex += 1
 
     def program(asts):
-        
+        if peek('EOF'):
+            return asts
+        else:
+            e = expr()
+            asts.append(e)
+            return program(asts)
+
+    def expr():
+        return shift_ex()
+
+    def shift_ex():
+        o = or_ex()
+        if peek('<<') or peek('>>'):
+            op = tok.kind
+            consume(op)
+            o1 = or_ex()
+            o = {'op': op, 'operand1': o, 'operand2': o1}
+        return o
+
+    def or_ex():
+        x = xor_ex()
+        while peek('|') or peek('&'):
+            op = tok.kind
+            consume(op)
+            x1 = xor_ex()
+            x = {'op': op, 'operand1': x, 'operand2': x1}
+        return x
+
+    def xor_ex():
+        u = unary()
+        if peek('^'):
+            consume('^')
+            x = xor_ex()
+            return {'op': '^', 'operand1': u, 'operand2': x}
+        return u
+
+    def unary():
+        if peek('~'):
+            consume('~')
+            u = unary()
+            return {'op': '~', 'operand1': u}
+        else:
+            return prim()
+
+    def prim():
+        if peek('INT'):
+            v = parse_int(tok.lexeme)
+            consume('INT')
+            return v
+        else:
+            consume('(')
+            e = expr()
+            consume(')')
+            return e
+
+    def parse_int(lexeme):
+        s = lexeme.replace('_', '')
+        if s[:2] in ('0x', '0X'):
+            return int(s, 16)
+        return int(s, 10)
+
+    def peek(kind):
+        nonlocal tok
+        return tok.kind == kind
+
+    def consume(kind):
+        nonlocal tok, toks, toksIndex
+        if (peek(kind)):
+            tok = toks[toksIndex]
+            toksIndex+=1
+        else:
+            error(kind, text)
+
+    def error(kind, test):
+        nonlocal tok
+        pos = tok.pos
+        if pos >= len(text) or text[pos] =='\n': pos -= 1
+        lineBegin = text.rfind('\n', 0, pos)
+        if lineBegin < 0: lineBegin=0
+        lineEnd = text.find('\n', pos)
+        if lineEnd < 0: lineEnd = len(text)
+        line = text[lineBegin:lineEnd]
+        print(f"error: expecting '{kind}' but got '{tok.kind}'", file=sys.stderr)
+        sys.exit(1)
+
+    
+    asts = [];
+    program(asts)
+    if tok.kind != 'EOF': error('EOF', text)
+    return asts
+
+
 
 ### LEXER ###
 
