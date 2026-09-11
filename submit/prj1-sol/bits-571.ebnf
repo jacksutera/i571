@@ -1,0 +1,37 @@
+571 proj1 ebnf of bits-571
+
+program
+  : expr*
+  ;
+expr
+  : shift_ex
+  ;
+shift_ex
+  : or_ex ( ( '<<' | '>>' ) or_ex )?
+  ;
+or_ex
+  : xor_ex ( ( '|' | '&' ) xor_ex )*
+  ;
+xor_ex
+  : unary ( '^' xor_ex)?
+  ;
+unary
+  : '~' unary
+  | prim
+  ;
+prim
+  : int
+  | '(' expr ')'
+  ;
+int
+  : digit ( '_'? digit )*
+  | ( '0x' | '0X' ) hex ( '_'? hex )*
+  ;
+digit
+  : \d
+  ;
+hex
+  : digit
+  | [a-f]
+  | [A-F]
+  ;
