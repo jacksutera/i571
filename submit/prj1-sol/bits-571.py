@@ -91,7 +91,7 @@ def parse(text):
         if peek('~'):
             consume('~')
             u = unary()
-            return {'op': '~', 'operand1': u}
+            return {'op': '~', 'operand1': u, 'operand2': None}
         else:
             return prim()
 
@@ -127,13 +127,12 @@ def parse(text):
     def error(kind, test):
         nonlocal tok
         pos = tok.pos
-        if pos >= len(text) or text[pos] =='\n': pos -= 1
         lineBegin = text.rfind('\n', 0, pos)
-        if lineBegin < 0: lineBegin=0
-        lineEnd = text.find('\n', pos)
-        if lineEnd < 0: lineEnd = len(text)
-        line = text[lineBegin:lineEnd]
-        print(f"error: expecting '{kind}' but got '{tok.kind}'", file=sys.stderr)
+        lineNo = text.count('\n', 0, pos) + 1
+        col = pos - lineBegin if lineBegin >= 0 else pos + 1
+        print(f"error: expecting '{kind}' but got '{tok.kind}' "
+              f"('{tok.lexeme}') at line {lineNo}, column {col}",
+              file=sys.stderr)
         sys.exit(1)
 
     
