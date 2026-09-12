@@ -1,3 +1,6 @@
+#imports for RegEx's, sys for stdin and stderr, namedtuple for the struct
+#and json for the output
+
 import re
 import sys
 from collections import namedtuple
@@ -45,6 +48,7 @@ hex
 
 #MODELED OFF OF PYTHON EXAMPLE
 def parse(text):
+    #call the lexer first to tokenize, set up global variables
     toks = tokenize(text)
     toksIndex = 0
     tok = toks[toksIndex]
@@ -135,7 +139,7 @@ def parse(text):
               file=sys.stderr)
         sys.exit(1)
 
-    
+    #"Main" code of parser, sets up tree and calls the grammar header "program"
     asts = [];
     program(asts)
     if tok.kind != 'EOF': error('EOF', text)
@@ -157,6 +161,7 @@ Token = namedtuple('Token', 'kind lexeme pos')
 def tokenize(text, pos=0):
     toks = []
     while pos < len(text):
+        #match whitespace and move past it
         m = SKIP_RE.match(text, pos)
         if m:
             pos += len(m.group())
@@ -178,8 +183,9 @@ def tokenize(text, pos=0):
 
 ### Main ###
 def main():
+    #read from standard input, call parse (which handles tokenizing also)
+    #and output in java format with no whitespace.
     text = sys.stdin.read()
-    #print(tokenize(text))
     asts = parse(text)
     print(json.dumps(asts, separators=(',', ':')))
 
