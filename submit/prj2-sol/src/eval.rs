@@ -20,7 +20,7 @@ pub fn eval(ast: &ExprNode) -> EvalResult {
 
 fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
     match ast {
-	ExprNode::Int { value, .. } => todo!(),
+	ExprNode::Int { value, .. } => Ok(EvalValue::Value(*value)),
 	ExprNode::Op2 { op, rand1, rand2, coord } => {
 	    todo!();
 	},
