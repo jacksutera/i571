@@ -1,0 +1,7 @@
+*target/*
+*examples/*
+*extras/*
+*~
+*.zipignore
+*.gitignore
+
