@@ -38,11 +38,29 @@ fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
 			}
 		}
 	},
-	ExprNode::Lambda { params, body, .. } => todo!(),
+	ExprNode::Lambda { params, body, .. } => Ok(EvalValue::Closure{params: params.clone(), body: *body.clone(), env: env.clone()}),
 	ExprNode:: Let { let_kind, defs, expr, .. } => {
-	    todo!();
+	    match let_kind {
+			LetKind::Parallel => {
+				par_let(ast, env, defs, expr)
+			}
+			LetKind::Sequential => {
+				seq_let(ast, env, defs, expr)
+			}
+			LetKind::Recursive => {
+				rec_let(ast, env, defs, expr)
+			}
+		}
 	}
-	ExprNode::Id { id, coord } => todo!(),
+	ExprNode::Id { id, coord } => {
+		let oc = env.get(id);
+		if let Some(ev) = oc {
+			Ok(ev)
+		}
+		else {
+			panic!("cannot parse None value {:?}", ast)
+		}
+	},
 
 	ExprNode::App { name, args, coord } => todo!(),
 
@@ -54,6 +72,25 @@ fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
 /*************************** Helpers for Eval **************************/
 
 //TODO
+
+fn par_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+	let mut env1 = env.clone();
+	for d in defs {
+		if let ExprNode::Def { id, expr: def, coord } = d {
+			let pb = eval_in_env(def, env)?;
+			env1 = env1.push(id, pb);
+		};
+	}
+	eval_in_env(expr, &env1)
+}
+
+fn seq_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+	todo!()	
+}
+
+fn rec_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+	todo!()
+}
 
 /**************************** Op2 Helper *******************************/
 
