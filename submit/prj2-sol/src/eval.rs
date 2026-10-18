@@ -28,7 +28,15 @@ fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
 		Ok(EvalValue::Value(f(e1, e2)))
 	},
 	ExprNode::If { cond, then, else_, coord } => {
-	    todo!();
+	    let c = eval_in_env(cond, env)?.val(coord)?;
+		match c {
+			0 => {
+				eval_in_env(else_, env)
+			}
+			_ => {
+				eval_in_env(then, env)
+			}
+		}
 	},
 	ExprNode::Lambda { params, body, .. } => todo!(),
 	ExprNode:: Let { let_kind, defs, expr, .. } => {
