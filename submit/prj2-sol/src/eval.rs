@@ -22,7 +22,10 @@ fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
     match ast {
 	ExprNode::Int { value, .. } => Ok(EvalValue::Value(*value)),
 	ExprNode::Op2 { op, rand1, rand2, coord } => {
-	    todo!();
+	    let f = op_fn(op, coord)?;
+		let e1 = eval_in_env(rand1, env)?.val(coord)?;
+		let e2 = eval_in_env(rand2, env)?.val(coord)?;
+		Ok(EvalValue::Value(f(e1, e2)))
 	},
 	ExprNode::If { cond, then, else_, coord } => {
 	    todo!();
