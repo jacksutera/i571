@@ -96,7 +96,19 @@ fn seq_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Bo
 }
 
 fn rec_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
-	todo!()
+	let mut env1 = env.clone();
+	for d in defs {
+		if let ExprNode::Def { id, expr: def, coord } = d {
+			env1 = env1.push(id, EvalValue::Undef);
+		};
+	}
+	for d in defs {
+		if let ExprNode::Def { id, expr: def, coord } = d {
+			let pb = eval_in_env(def, &env1)?;
+			env1.set(id, pb);
+		};
+	}
+	eval_in_env(expr, &env1)
 }
 
 /**************************** Op2 Helper *******************************/
