@@ -58,14 +58,10 @@ fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
             LetKind::Sequential => seq_let(env, defs, expr),
             LetKind::Recursive => rec_let(env, defs, expr),
         },
-        ExprNode::Id { id, .. } => {
-            let oc = env.get(id);
-            if let Some(ev) = oc {
-                Ok(ev)
-            } else {
-                Err(EvalError(format!("env.get(id) failed to find a EvalValue")))
-            }
-        }
+        ExprNode::Id { id, coord } => match env.get(id) {
+            Some(ev) => Ok(ev),
+            None => Err(EvalError(format!("{}: undefined identifier {}", coord, id))),
+        },
 
         ExprNode::App { name, args, coord } => app(name, args, coord, env),
 
@@ -78,7 +74,7 @@ fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
 
 //TODO
 
-fn par_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+fn par_let(env: &Env<EvalValue>, defs: &[ExprNode], expr: &Box<ExprNode>) -> EvalResult {
     let mut env1 = env.clone();
     for d in defs {
         if let ExprNode::Def { id, expr: def, .. } = d {
@@ -89,7 +85,7 @@ fn par_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> 
     eval_in_env(expr, &env1)
 }
 
-fn seq_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+fn seq_let(env: &Env<EvalValue>, defs: &[ExprNode], expr: &Box<ExprNode>) -> EvalResult {
     let mut env1 = env.clone();
     for d in defs {
         if let ExprNode::Def { id, expr: def, .. } = d {
@@ -100,7 +96,7 @@ fn seq_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> 
     eval_in_env(expr, &env1)
 }
 
-fn rec_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+fn rec_let(env: &Env<EvalValue>, defs: &[ExprNode], expr: &Box<ExprNode>) -> EvalResult {
     let mut env1 = env.clone();
     for d in defs {
         if let ExprNode::Def { id, .. } = d {
@@ -125,7 +121,7 @@ fn rec_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> 
 /// obtained with the env.get()) and the args (through the vector passed in the signature), computing
 /// the EvalValue in the args and assigning them to the mutable environment. Then, evaluate the
 /// ExprNode from the function on the mutable environment.
-fn app(name: &str, args: &Vec<ExprNode>, coord: &Coord, env: &Env<EvalValue>) -> EvalResult {
+fn app(name: &str, args: &[ExprNode], coord: &Coord, env: &Env<EvalValue>) -> EvalResult {
     let fn_val = match env.get(name) {
         Some(v) => v,
         None => {
@@ -163,7 +159,6 @@ fn app(name: &str, args: &Vec<ExprNode>, coord: &Coord, env: &Env<EvalValue>) ->
 /// Avoid boilerplace for the different Op2 functions.  Simply call
 /// op_fn() on the op and then apply the returned BinOpFn to
 /// evaluate the recursively evaluted operands.
-
 type BinOpFn = fn(Value, Value) -> Value;
 struct OpFunc(&'static str, BinOpFn);
 
