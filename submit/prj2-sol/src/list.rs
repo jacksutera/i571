@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-
 // From "Learning Rust With Entirely Too Many Linked Lists" at
 // <https://rust-unofficial.github.io/too-many-lists/>
 
@@ -24,15 +23,19 @@ impl<T> List<T> {
     }
 
     pub fn prepend(&self, elem: T) -> List<T> {
-        List { head: Some(Rc::new(Node {
-            elem: elem,
-            next: self.head.clone(),  //increment rc if not None
-        }))}
+        List {
+            head: Some(Rc::new(Node {
+                elem: elem,
+                next: self.head.clone(), //increment rc if not None
+            })),
+        }
     }
 
     pub fn tail(&self) -> List<T> {
-	//as_ref prevents moving head out of self
-        List { head: self.head.as_ref().and_then(|node| node.next.clone()) }
+        //as_ref prevents moving head out of self
+        List {
+            head: self.head.as_ref().and_then(|node| node.next.clone()),
+        }
     }
 
     pub fn head(&self) -> Option<&T> {
@@ -40,8 +43,10 @@ impl<T> List<T> {
     }
 
     pub fn iter(&self) -> Iter<'_, T> {
-	// sets next as shared ref to Option<Node>
-        Iter { next: self.head.as_deref() }
+        // sets next as shared ref to Option<Node>
+        Iter {
+            next: self.head.as_deref(),
+        }
     }
 }
 
@@ -109,4 +114,3 @@ mod test {
         assert_eq!(iter.next(), Some(&1));
     }
 }
-

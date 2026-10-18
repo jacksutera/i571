@@ -1,10 +1,9 @@
-use crate::lexer::{Coord};
-use crate::parser::{ExprNode, Value, LetKind};
-use crate::env::{Env};
+use crate::env::Env;
+use crate::lexer::Coord;
+use crate::parser::{ExprNode, LetKind, Value};
 
-use std::fmt;
 use std::error::Error;
-
+use std::fmt;
 
 /************************* Expression Evaluator ************************/
 
@@ -20,52 +19,58 @@ pub fn eval(ast: &ExprNode) -> EvalResult {
 
 fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
     match ast {
-	ExprNode::Int { value, .. } => Ok(EvalValue::Value(*value)),
-	ExprNode::Op2 { op, rand1, rand2, coord } => {
-	    let f = op_fn(op, coord)?;
-		let e1 = eval_in_env(rand1, env)?.val(coord)?;
-		let e2 = eval_in_env(rand2, env)?.val(coord)?;
-		Ok(EvalValue::Value(f(e1, e2)))
-	},
-	ExprNode::If { cond, then, else_, coord } => {
-	    let c = eval_in_env(cond, env)?.val(coord)?;
-		match c {
-			0 => {
-				eval_in_env(else_, env)
-			}
-			_ => {
-				eval_in_env(then, env)
-			}
-		}
-	},
-	ExprNode::Lambda { params, body, .. } => Ok(EvalValue::Closure{params: params.clone(), body: *body.clone(), env: env.clone()}),
-	ExprNode:: Let { let_kind, defs, expr, .. } => {
-	    match let_kind {
-			LetKind::Parallel => {
-				par_let(ast, env, defs, expr)
-			}
-			LetKind::Sequential => {
-				seq_let(ast, env, defs, expr)
-			}
-			LetKind::Recursive => {
-				rec_let(ast, env, defs, expr)
-			}
-		}
-	}
-	ExprNode::Id { id, coord } => {
-		let oc = env.get(id);
-		if let Some(ev) = oc {
-			Ok(ev)
-		}
-		else {
-			panic!("cannot parse None value {:?}", ast)
-		}
-	},
+        ExprNode::Int { value, .. } => Ok(EvalValue::Value(*value)),
+        ExprNode::Op2 {
+            op,
+            rand1,
+            rand2,
+            coord,
+        } => {
+            let f = op_fn(op, coord)?;
+            let e1 = eval_in_env(rand1, env)?.val(coord)?;
+            let e2 = eval_in_env(rand2, env)?.val(coord)?;
+            Ok(EvalValue::Value(f(e1, e2)))
+        }
+        ExprNode::If {
+            cond,
+            then,
+            else_,
+            coord,
+        } => {
+            let c = eval_in_env(cond, env)?.val(coord)?;
+            match c {
+                0 => eval_in_env(else_, env),
+                _ => eval_in_env(then, env),
+            }
+        }
+        ExprNode::Lambda { params, body, .. } => Ok(EvalValue::Closure {
+            params: params.clone(),
+            body: *body.clone(),
+            env: env.clone(),
+        }),
+        ExprNode::Let {
+            let_kind,
+            defs,
+            expr,
+            ..
+        } => match let_kind {
+            LetKind::Parallel => par_let(env, defs, expr),
+            LetKind::Sequential => seq_let(env, defs, expr),
+            LetKind::Recursive => rec_let(env, defs, expr),
+        },
+        ExprNode::Id { id, .. } => {
+            let oc = env.get(id);
+            if let Some(ev) = oc {
+                Ok(ev)
+            } else {
+                Err(EvalError(format!("env.get(id) failed to find a EvalValue")))
+            }
+        }
 
-	ExprNode::App { name, args, coord } => todo!(),
+        ExprNode::App { name, args, coord } => app(name, args, coord, env),
 
-	// we panic below because not handling an AST variant is a bug
-	_ => panic!("eval not defined for ast variant {:?}", ast),
+        // we panic below because not handling an AST variant is a bug
+        _ => panic!("eval not defined for ast variant {:?}", ast),
     }
 }
 
@@ -73,42 +78,84 @@ fn eval_in_env(ast: &ExprNode, env: &Env<EvalValue>) -> EvalResult {
 
 //TODO
 
-fn par_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
-	let mut env1 = env.clone();
-	for d in defs {
-		if let ExprNode::Def { id, expr: def, coord } = d {
-			let pb = eval_in_env(def, env)?;
-			env1 = env1.push(id, pb);
-		};
-	}
-	eval_in_env(expr, &env1)
+fn par_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+    let mut env1 = env.clone();
+    for d in defs {
+        if let ExprNode::Def { id, expr: def, .. } = d {
+            let pb = eval_in_env(def, env)?;
+            env1 = env1.push(id, pb);
+        };
+    }
+    eval_in_env(expr, &env1)
 }
 
-fn seq_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
-	let mut env1 = env.clone();
-	for d in defs {
-		if let ExprNode::Def { id, expr: def, coord } = d {
-			let pb = eval_in_env(def, &env1)?;
-			env1 = env1.push(id, pb);
-		};
-	}
-	eval_in_env(expr, &env1)
+fn seq_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+    let mut env1 = env.clone();
+    for d in defs {
+        if let ExprNode::Def { id, expr: def, .. } = d {
+            let pb = eval_in_env(def, &env1)?;
+            env1 = env1.push(id, pb);
+        };
+    }
+    eval_in_env(expr, &env1)
 }
 
-fn rec_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
-	let mut env1 = env.clone();
-	for d in defs {
-		if let ExprNode::Def { id, expr: def, coord } = d {
-			env1 = env1.push(id, EvalValue::Undef);
-		};
-	}
-	for d in defs {
-		if let ExprNode::Def { id, expr: def, coord } = d {
-			let pb = eval_in_env(def, &env1)?;
-			env1.set(id, pb);
-		};
-	}
-	eval_in_env(expr, &env1)
+fn rec_let(env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Box<ExprNode>) -> EvalResult {
+    let mut env1 = env.clone();
+    for d in defs {
+        if let ExprNode::Def { id, .. } = d {
+            env1 = env1.push(id, EvalValue::Undef);
+        };
+    }
+    for d in defs {
+        if let ExprNode::Def { id, expr: def, .. } = d {
+            let pb = eval_in_env(def, &env1)?;
+            env1.set(id, pb);
+        };
+    }
+    eval_in_env(expr, &env1)
+}
+
+/// Function flow: First, get the lambda function from the overarching environment. Then, ensure
+/// that the function is a closure type EvalValue. Return an EvalError if either the env doesn't
+/// have a function that matches the "name" argument, or if the function is not a closure type.
+/// Then check if then number of actual parameters matches the number of formal parameters, as
+/// indicated in the requirements section. Finally, after confirming all of the above, make a
+/// mutable env like the let functions, and iterate through both the parameters (through the function
+/// obtained with the env.get()) and the args (through the vector passed in the signature), computing
+/// the EvalValue in the args and assigning them to the mutable environment. Then, evaluate the
+/// ExprNode from the function on the mutable environment.
+fn app(name: &str, args: &Vec<ExprNode>, coord: &Coord, env: &Env<EvalValue>) -> EvalResult {
+    let fn_val = match env.get(name) {
+        Some(v) => v,
+        None => {
+            return Err(EvalError(format!("{}: unknown identifier {}", coord, name)));
+        }
+    };
+    let (params, body, clos_env) = match fn_val {
+        EvalValue::Closure { params, body, env } => (params, body, env),
+        other => {
+            return Err(EvalError(format!(
+                "{}: expected a Closure, but got {:?}",
+                coord, other
+            )));
+        }
+    };
+    if params.len() != args.len() {
+        return Err(EvalError(format!(
+            "{}: function {} expects {} argument(s) but got {}",
+            coord,
+            name,
+            params.len(),
+            args.len()
+        )));
+    }
+    let mut env1 = clos_env;
+    for (formal, actual) in params.iter().zip(args.iter()) {
+        let value = eval_in_env(actual, env)?;
+        env1 = env1.push(formal, value);
+    }
+    eval_in_env(&body, &env1)
 }
 
 /**************************** Op2 Helper *******************************/
@@ -118,24 +165,26 @@ fn rec_let(ast: &ExprNode, env: &Env<EvalValue>, defs: &Vec<ExprNode>, expr: &Bo
 /// evaluate the recursively evaluted operands.
 
 type BinOpFn = fn(Value, Value) -> Value;
-struct OpFunc(&'static str,BinOpFn);
+struct OpFunc(&'static str, BinOpFn);
 
 fn op_fn(op: &str, coord: &Coord) -> Result<BinOpFn, EvalError> {
     for op_fn in OP_FUNCS {
-	if op == op_fn.0 {
-	    return Ok(op_fn.1);
-	}
+        if op == op_fn.0 {
+            return Ok(op_fn.1);
+        }
     }
-    Err(EvalError(format!("{}: unknown binary operation {}", op, coord)))
+    Err(EvalError(format!(
+        "{}: unknown binary operation {}",
+        op, coord
+    )))
 }
 
-
-const OP_FUNCS: [OpFunc;7] = [
-    OpFunc("+", |a, b| a+b),
-    OpFunc("-", |a, b| a-b),
-    OpFunc("*", |a, b| a*b),
-    OpFunc("/", |a, b| a/b),
-    OpFunc("%", |a, b| a%b),
+const OP_FUNCS: [OpFunc; 7] = [
+    OpFunc("+", |a, b| a + b),
+    OpFunc("-", |a, b| a - b),
+    OpFunc("*", |a, b| a * b),
+    OpFunc("/", |a, b| a / b),
+    OpFunc("%", |a, b| a % b),
     OpFunc("==", |a, b| if a == b { 1 } else { 0 }),
     OpFunc("<", |a, b| if a < b { 1 } else { 0 }),
 ];
@@ -146,38 +195,39 @@ const OP_FUNCS: [OpFunc;7] = [
 #[derive(Debug, Clone)]
 pub enum EvalValue {
     Value(Value), //the expected value
-    Closure { //captures a `lambda` and its referencing environment
-	//owns its fields
-	params: Vec<String>,
-	body: ExprNode,
-	env: Env<EvalValue>,
+    Closure {
+        //captures a `lambda` and its referencing environment
+        //owns its fields
+        params: Vec<String>,
+        body: ExprNode,
+        env: Env<EvalValue>,
     },
-    Undef,  //undefined value; use when implemented letrec
+    Undef, //undefined value; use when implemented letrec
 }
 
 /// When an EvalValue is expected to be a Value, use .val() to
-/// extract it without needing to pattern match. 
+/// extract it without needing to pattern match.
 impl EvalValue {
     fn val(&self, coord: &Coord) -> Result<Value, EvalError> {
-	if let Self::Value(value) = self {
-	    Ok(*value)
-	}
-	else {
-	    Err(EvalError(format!("{}: expected a Value, but got {:?}",
-				  coord, self)))
-	}
+        if let Self::Value(value) = self {
+            Ok(*value)
+        } else {
+            Err(EvalError(format!(
+                "{}: expected a Value, but got {:?}",
+                coord, self
+            )))
+        }
     }
 }
 
 /// Displaying EvalValue
 impl fmt::Display for EvalValue {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-	match self {
-	    Self::Value(val) => write!(f, "{}", val),
-	    Self::Closure{..} => write!(f, "<closure>"),
-	    Self::Undef => write!(f, "<undef>"),
-	}
+        match self {
+            Self::Value(val) => write!(f, "{}", val),
+            Self::Closure { .. } => write!(f, "<closure>"),
+            Self::Undef => write!(f, "<undef>"),
+        }
     }
 }
 
@@ -188,10 +238,8 @@ pub struct EvalError(String);
 /// Displaying EvalError
 impl fmt::Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-	write!(f, "{}", self.0)
+        write!(f, "{}", self.0)
     }
 }
 
 impl Error for EvalError {}
-
-
