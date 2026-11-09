@@ -1,0 +1,10 @@
+*/*.o
+*/*.hi
+*/Exprs.hs
+*/Tests.hs
+*/TestUtils.hs
+*/Prj2LangTypes.hs
+*/Prj2Tests.hs
+*~
+*.gitignore
+*.zipignore
