@@ -54,7 +54,7 @@ import Prj2LangTypes
 -- of singleton lists [e].
 -- *Restriction*: must use map with a section.
 toSingletonLists :: [e] -> [[e]]
-toSingletonLists list = error "TODO"
+toSingletonLists list = map (:[]) list
 
 --------------------------------- listMap -------------------------------
 
@@ -66,7 +66,7 @@ toSingletonLists list = error "TODO"
 -- *Restriction*: cannot use explicit recursion
 -- Hint: use the map function or a list comprehension
 listMap :: (a -> b -> c) -> a -> [b] -> [c]
-listMap f a list = error "TODO"
+listMap f x list = map (f x) list
 
 
 ---------------------------------- append -------------------------------
@@ -76,7 +76,7 @@ listMap f a list = error "TODO"
 -- append ls1 ls2: return ls1 ++ ls2
 -- Restriction: must use either foldl or foldr; cannot use ++ or recursion
 append :: [a] -> [a] -> [a]
-append ls1 ls2 = error "TODO"
+append ls1 ls2 = foldr (:) ls2 ls1
   
 ---------------------------------- member -------------------------------
 
@@ -87,7 +87,7 @@ append ls1 ls2 = error "TODO"
 -- Hint: define folding function using a lambda or local let/where definition;
 -- also see recursive definition of member in slides.
 member :: Eq e => e -> [e] -> Bool
-member e list = error "TODO"
+member e list = foldl (\acc x -> acc || x == e) False list
 
 
 ------------------------------- selectNApart ----------------------------
@@ -99,7 +99,8 @@ member e list = error "TODO"
 -- n, 2n, 3n, 4n, ... for n > 0.
 -- Hint: use drop
 selectNApart :: Int -> [e] -> [e]
-selectNApart n list = error "TODO"
+selectNApart _ [] = []
+selectNApart n (x:xs) = x : (selectNApart n (drop (n-1) xs))
 
 ------------------------------ sumListsRec ------------------------------
 
@@ -113,7 +114,18 @@ selectNApart n list = error "TODO"
 -- only basic arithmetic operators.  Cannot call any other external
 -- functions.
 sumListsRec :: [[Int]] -> Int -> Int
-sumListsRec listOfLists n = error "TODO"
+sumListsRec [] _ = 0
+sumListsRec (x:xs) n
+  | (listLength x) `mod` n == 0 = sumList x + sumListsRec xs n
+  | otherwise = sumListsRec xs n
+  where
+    listLength :: [Int] -> Int
+    listLength [] = 0
+    listLength (_:ys) = 1 + listLength ys
+
+    sumList :: [Int] -> Int
+    sumList [] = 0
+    sumList (y:ys) = y + sumList ys
                                   
 ------------------------------ sumListsPipe -----------------------------
 
@@ -127,7 +139,10 @@ sumListsRec listOfLists n = error "TODO"
 -- Cannot define any auxiliary functions, but can use `map`, `filter`
 -- `foldl` and `foldr`.
 sumListsPipe :: [[Int]] -> Int -> Int
-sumListsPipe listOfLists n = error "TODO"
+sumListsPipe listOfLists n = 
+  listOfLists
+    & filter (\x -> (foldr (\_ acc -> acc+1) 0 x) `mod` n == 0)
+    & foldr (\x acc -> foldr (+) 0 x + acc) 0
                                   
   
 ----------------------------- evalPrj2Expr ------------------------------
