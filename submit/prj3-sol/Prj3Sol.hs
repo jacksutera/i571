@@ -174,18 +174,47 @@ evalPrj2Expr expr =
             Just v -> v
             Nothing -> error $ "unknown identifier '" ++ id_ ++ "'"
         Op2 { op, rand1, rand2 } ->
-          error "TODO"
+          case (evalEnv rand1 env, evalEnv rand2 env) of
+            (Val a, Val b) -> Val ((opFn op) a b)
         If { cond, then_, else_ } -> 
-          error "TODO"
+          case evalEnv cond env of
+            Val 0 -> evalEnv else_ env
+            Val _ -> evalEnv then_ env
         lambda@Lambda {} -> 
-          error "TODO"  
+          Closure env lambda  
         Let { letKind, defs, expr } ->
-          error "TODO"  
+          case letKind of
+            Parallel -> evalEnv expr (auxPar defs env)
+            Sequential -> evalEnv expr (auxSeq defs env)
+            Recursive -> evalEnv expr (auxRec defs env)
         App { name, args } ->
-          error "TODO"  
+          case lookup name env of
+            Just (Closure cEnv (Lambda {params, body})) ->
+              evalEnv body (bindArgs params args env cEnv)  --bindArgs helper defined in aux functions
         _ -> error $ "unhandled expr " -- ++ (show expr)
 
     -- TODO: add more aux fns
+    auxPar [] env = env
+    auxPar (Def {id_, expr} : ds) env = 
+      (id_, evalEnv expr env) : auxPar ds env
+
+    auxSeq [] env = env
+    auxSeq (Def {id_, expr} : ds) env = 
+      auxSeq ds ((id_, evalEnv expr env) : env)
+
+    auxRec defs env = 
+      let env' = addRec defs env'
+      in env'
+      where
+        addRec [] e = env
+        addRec (Def {id_, expr} : ds) e =
+          (id_, evalEnv expr e) : addRec ds e
+
+    -- bindArgs iterates through the parameters and arguments and adds to a mutable environment, before
+    -- returning the entire environment back to the App fn to be evaluated with the body.
+    bindArgs [] [] _ cEnv = cEnv
+    bindArgs (p:ps) (a:as) env cEnv = 
+      bindArgs ps as env ((p, evalEnv a env) : cEnv)
     
     opFn op =
       case lookup op opFuncs of

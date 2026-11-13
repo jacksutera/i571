@@ -118,7 +118,7 @@ allTests = [
     (Run testSelectNApart),
     (Run testSumListsRec),
     (Run testSumListsPipe),
-    (Skip testEvalPrj2Expr)
+    (Run testEvalPrj2Expr)
   ]
 
 
